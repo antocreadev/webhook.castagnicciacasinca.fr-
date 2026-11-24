@@ -21,11 +21,21 @@ function runBuild(res = null) {
   console.log('Début du build...');
 
   const buildCmd = `
+    curl -sf -o /dev/null http://localhost:1337/_health && \
     cd ~/astro-tourisme.castagnicciacasinca.fr && \
     rm -rf dist && \
     npm run build && \
-    sudo cp -r dist/* /var/www/tourisme.castagnicciacasinca.fr
+    DEST=/var/www/tourisme.castagnicciacasinca.fr && \
+    sudo rsync -a dist/ "$DEST/" && \
+    for d in dist/*/; do \
+      name=$(basename "$d"); \
+      [ "$name" = "_astro" ] && continue; \
+      sudo rsync -a --delete "dist/$name/" "$DEST/$name/"; \
+    done
   `;
+  // rsync --delete par dossier généré : les pages d'éléments supprimés/dépubliés
+  // dans Strapi (ex. /agenda/<id>) disparaissent du site. Les dossiers hors build
+  // (ex. /parcours) et /_astro (anciens assets encore en cache) sont conservés.
 
   exec(buildCmd, (error, stdout, stderr) => {
     isBuilding = false;
